@@ -4,6 +4,7 @@ let
   packages = with pkgs.python3Packages; [
     fastapi
     uvicorn
+    GitPython
   ];
 in
 pkgs.mkShell {
