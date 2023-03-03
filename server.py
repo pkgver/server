@@ -6,8 +6,6 @@ from fastapi.responses import JSONResponse
 
 from handler import get_package_path, get_package_versions
 
-os.environ['PROOT'] = os.path.dirname(__file__)
-os.chdir("../nixpkgs")
 app = FastAPI()
 
 
