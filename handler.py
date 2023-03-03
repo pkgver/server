@@ -1,6 +1,7 @@
-import os
+import re
 import subprocess
-from os.path import join
+
+import git
 
 from database import query
 
@@ -11,7 +12,6 @@ def execute(command: list):
 
 
 def get_package_path(package_name):
-    execute(['git', 'pull'])
     path = execute(['grep', f'^\s*{package_name}\s*=', 'pkgs/top-level/all-packages.nix'])
     if not path.stdout:
         return None
@@ -22,15 +22,26 @@ def get_package_path(package_name):
 
 def get_versions_from_commits(package_path, from_commit: str = None):
     versions = {}
-    cmd = [join(os.environ['PROOT'], 'versions.sh'), package_path]
-    if from_commit:
-        cmd += [f'{from_commit}..HEAD']
-    commits = execute(cmd)
+    repo = git.Repo('./nixpkgs')
 
-    for commit in commits.stdout.split('\n')[::-1]:
-        if commit:
-            hash, version = commit.split()
-            versions[version] = hash
+    args = ['--pretty=format:%H', '--name-only', '--follow', package_path]
+    if from_commit:
+        args.insert(0, f'{from_commit}..HEAD')
+
+    log = repo.git.log(*args)
+    log = [i for i in log.split('\n') if i]
+    pattern = re.compile(r'version\s*=\s*"(.+?)(?=")')
+
+    it = iter(log)
+    for commit_hash in it:
+        commit = repo.commit(commit_hash)
+        file_content = commit.tree[next(it)].data_stream.read().decode('utf-8')
+        if version := pattern.search(file_content):
+            version = version.group(1)
+        else:
+            version = commit_hash[0:7]
+
+        versions[version] = commit_hash
 
     return versions
 
