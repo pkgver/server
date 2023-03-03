@@ -4,6 +4,8 @@ file=$1
 
 # cd ../nixpkgs
 
+git config feature.manyFiles 1
+
 git --no-pager log $2 --no-decorate --no-color --pretty=format:"%H" --name-only --follow -- $file |
     while read -r commit_hash && read -r path; do
         content=$(git show "$commit_hash:$path")
