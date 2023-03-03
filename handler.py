@@ -1,28 +1,31 @@
 import re
-import subprocess
 
 import git
 
 from database import query
 
+repo = git.Repo('./nixpkgs')
+config_writer = repo.config_writer()
+config_writer.set_value('feature', 'manyFiles', '1')
+config_writer.release()
 
-def execute(command: list):
-    p = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return p
+version_pattern = re.compile(r'version\s*=\s*"(.+?)(?=")')
 
 
 def get_package_path(package_name):
-    path = execute(['grep', f'^\s*{package_name}\s*=', 'pkgs/top-level/all-packages.nix'])
-    if not path.stdout:
+    commit_tree = repo.head.commit.tree
+    all_packages = commit_tree['pkgs/top-level/all-packages.nix'].data_stream.read().decode('utf-8')
+    if not (path := re.search(f'\\b{package_name}\\b\s*=.*', all_packages, flags=re.MULTILINE)):
         return None
-    result = path.stdout.split()[3].replace('..', 'pkgs') + "/default.nix"
-    print(result)
-    return result
+
+    path = path.group(0).split()[3].replace('..', 'pkgs') + '/default.nix'
+
+    print(path)
+    return path
 
 
 def get_versions_from_commits(package_path, from_commit: str = None):
     versions = {}
-    repo = git.Repo('./nixpkgs')
 
     args = ['--pretty=format:%H', '--name-only', '--follow', package_path]
     if from_commit:
@@ -30,13 +33,12 @@ def get_versions_from_commits(package_path, from_commit: str = None):
 
     log = repo.git.log(*args)
     log = [i for i in log.split('\n') if i]
-    pattern = re.compile(r'version\s*=\s*"(.+?)(?=")')
 
     it = iter(log)
     for commit_hash in it:
         commit = repo.commit(commit_hash)
         file_content = commit.tree[next(it)].data_stream.read().decode('utf-8')
-        if version := pattern.search(file_content):
+        if version := version_pattern.search(file_content):
             version = version.group(1)
         else:
             version = commit_hash[0:7]
