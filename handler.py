@@ -32,12 +32,14 @@ def get_versions_from_commits(package_path, from_commit: str = None):
         args.insert(0, f'{from_commit}..HEAD')
 
     log = repo.git.log(*args)
-    log = [i for i in log.split('\n') if i]
+    # reverse list
+    log = [i for i in log.split('\n')[::-1] if i]
 
     it = iter(log)
-    for commit_hash in it:
+    for filepath in it:
+        commit_hash = next(it)
         commit = repo.commit(commit_hash)
-        file_content = commit.tree[next(it)].data_stream.read().decode('utf-8')
+        file_content = commit.tree[filepath].data_stream.read().decode('utf-8')
         if version := version_pattern.search(file_content):
             version = version.group(1)
         else:
