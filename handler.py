@@ -15,7 +15,7 @@ version_pattern = re.compile(r'version\s*=\s*"(.+?)(?=")')
 def get_package_path(package_name):
     commit_tree = repo.head.commit.tree
     all_packages = commit_tree['pkgs/top-level/all-packages.nix'].data_stream.read().decode('utf-8')
-    if not (path := re.search(f'\\b{package_name}\\b\s*=.*', all_packages, flags=re.MULTILINE)):
+    if not (path := re.search(f'^\s*\\b{package_name}\\b\s*=.*', all_packages, flags=re.MULTILINE)):
         return None
 
     path = path.group(0).split()[3].replace('..', 'pkgs') + '/default.nix'
