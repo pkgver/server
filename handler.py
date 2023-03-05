@@ -10,6 +10,7 @@ config_writer.set_value('feature', 'manyFiles', '1')
 config_writer.release()
 
 version_pattern = re.compile(r'version\s*=\s*"(.+?)(?=")')
+name_pattern = re.compile(r'name\s*=\s*"((?=[^"]*(\d+\.\d+|\d+-\d+)).+?)"')
 
 
 def get_package_path(package_name):
@@ -24,7 +25,7 @@ def get_package_path(package_name):
     return path
 
 
-def get_versions_from_commits(package_path, from_commit: str = None):
+def get_versions_from_commits(package_path, package_name, from_commit: str = None):
     versions = {}
 
     args = ['--pretty=format:%H', '--name-only', '--follow', package_path]
@@ -43,7 +44,10 @@ def get_versions_from_commits(package_path, from_commit: str = None):
         if version := version_pattern.search(file_content):
             version = version.group(1)
         else:
-            version = commit_hash[0:7]
+            if version := name_pattern.search(file_content):
+                version = version.group(1).replace(f'{package_name}-', '')
+            else:
+                version = commit_hash[0:7]
 
         versions[version] = commit_hash
 
@@ -51,7 +55,7 @@ def get_versions_from_commits(package_path, from_commit: str = None):
 
 
 def get_package_versions(package_name, package_path):
-    args = [package_path]
+    args = [package_path, package_name]
     if query("SELECT * FROM version WHERE LOWER(package) = ?", package_name):
         # latest commit hash
         latest = \
